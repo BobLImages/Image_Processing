@@ -59,6 +59,54 @@ def	get_files(rootdir):
 	random.shuffle(fnames)
 	return fnames
 
+def load_images_batch(file_objects, scale, enhanced_actions, batch_size):
+
+	for file_object in file_objects:
+		print(file_object.f_id, file_object.f_root, file_object.full_path,file_object.file_name)
+
+
+   	# # Method 1: Process each image individually
+	# start_time = time.time()
+	images_for_loading = []
+	counter = 0
+	
+	#print(fnames)
+	num_batches = len(file_objects) // batch_size + 1
+
+	for batch_num in range(num_batches):
+		batch_files = file_objects[batch_num * batch_size: (batch_num + 1) * batch_size]
+		for counter, fname in enumerate(batch_files):
+			if not counter:
+				#print(fname.full_path, scale)
+				pass
+			r_src = resize_file(fname.full_path, scale)
+
+			images_for_loading.append(Color_Image(counter, fname.full_path, r_src))
+			
+			print('Loaded', counter + 1, 'of', len(file_objects), 'Images')
+
+	# end_time = time.time()
+	# execution_time_batch = end_time - start_time
+	# print("Execution time (Batch processing):", execution_time_batch)
+
+
+	return images_for_loading
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 def check_valid(fnames):
 
 	c = 0
@@ -321,6 +369,5 @@ def load_thumbs(img_o,d_s,d_v):
     for j in range(6):
         thumbnails.append(create_thumbnail((d_s[j],d_v[j],j), img_o,20 ))
     return thumbnails
-
 
 

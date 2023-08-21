@@ -31,29 +31,29 @@ import exifread
 
 def dehaze(img,img_gs):
 
-	total = 0
-	mean =np.average(img_gs)
-	Channels = cv2.split(img)
+    total = 0
+    mean =np.average(img_gs)
+    Channels = cv2.split(img)
 
-	# Estimate Airlight
-	windowSze = 3
-	AirlightMethod = 'fast'
-	A = Airlight(img, AirlightMethod, windowSze)
+    # Estimate Airlight
+    windowSze = 3
+    AirlightMethod = 'fast'
+    A = Airlight(img, AirlightMethod, windowSze)
 
-	# Calculate Boundary Constraints
-	windowSze = 45
-	C0 = 25       # Default value = 20 (as recommended in the paper)
-	C1 = 260        # Default value = 300 (as recommended in the paper)
-	Transmission = BoundCon(img, A, C0, C1, windowSze)                  #   Computing the Transmission using equation (7) in the paper
+    # Calculate Boundary Constraints
+    windowSze = 45
+    C0 = 25       # Default value = 20 (as recommended in the paper)
+    C1 = 260        # Default value = 300 (as recommended in the paper)
+    Transmission = BoundCon(img, A, C0, C1, windowSze)                  #   Computing the Transmission using equation (7) in the paper
 
-	# Refine estimate of transmission
-	regularize_lambda = 1     # Default value = 1 (as recommended in the paper) --> Regularization parameter, the more this  value,
-	# the closer to the original patch wise transmission
-	sigma = 0.5
-	Transmission = CalTransmission(img, Transmission, regularize_lambda, sigma)     # Using contextual information
+    # Refine estimate of transmission
+    regularize_lambda = 1     # Default value = 1 (as recommended in the paper) --> Regularization parameter, the more this  value,
+    # the closer to the original patch wise transmission
+    sigma = 0.5
+    Transmission = CalTransmission(img, Transmission, regularize_lambda, sigma)     # Using contextual information
 
-	# Perform DeHazing
-	return removeHaze(img, Transmission, A, 0.85)
+    # Perform DeHazing
+    return removeHaze(img, Transmission, A, 0.85)
 
 def Airlight(HazeImg, AirlightMethod, windowSize):
     if(AirlightMethod.lower() == 'fast'):
@@ -704,8 +704,11 @@ class Color_Image:
         self.bodies = len(bodies)   
 
     def get_classification(self):
-        self.classification =  os.path.basename(self.fname)[0]
-
+        if os.path.basename(self.fname)[0] in ("G","B"):
+            self.classification =  os.path.basename(self.fname)[0]
+        else:
+            self.classification =  "U"
+ 
 
 
 
@@ -734,22 +737,22 @@ class Color_Image:
         image_labels.append("{label}: {B}".format(label = "Circles",B = self.hough_circles))
         image_labels.append("{label}: {B}".format(label = "Harris Corners",B = self.harris_corners))
         image_labels.append("{label}: {B}".format(label = "Status",B = self.status))
-        	
+            
         n = len(image_labels) * 30
         for label in image_labels:
-        	cv2.putText(self.image_sharp, label, (20, int(self.image_sharp.shape[0] - n)), cv2.FONT_HERSHEY_PLAIN, 1.25, (255,255,255), 2)
-        	cv2.putText(self.image_gs, label, (20, int(self.image_sharp.shape[0] - n)), cv2.FONT_HERSHEY_PLAIN, 1.25, (255,255,255), 2)
-        	cv2.putText(self.image, label, (20, int(self.image_sharp.shape[0] - n)), cv2.FONT_HERSHEY_PLAIN, 1.25, (255,255,255), 2)
-        	n = n -20
-        	
+            cv2.putText(self.image_sharp, label, (20, int(self.image_sharp.shape[0] - n)), cv2.FONT_HERSHEY_PLAIN, 1.25, (255,255,255), 2)
+            cv2.putText(self.image_gs, label, (20, int(self.image_sharp.shape[0] - n)), cv2.FONT_HERSHEY_PLAIN, 1.25, (255,255,255), 2)
+            cv2.putText(self.image, label, (20, int(self.image_sharp.shape[0] - n)), cv2.FONT_HERSHEY_PLAIN, 1.25, (255,255,255), 2)
+            n = n -20
+            
 
 
     def get_contour_ratio(self,segments):
 
         cr = []
         for segment in segments:
-        	if segment.image_id == self.image_id:
-        		self.contour_ratio.append(segment.contour_info[0])
+            if segment.image_id == self.image_id:
+                self.contour_ratio.append(segment.contour_info[0])
 
 
 
@@ -763,15 +766,15 @@ class Color_Image:
         print (ccc)
         if save:
             if self.status == 'Good':
-            	cv2.imwrite(root +  '/Good/' + os.path.basename(self.fname), self.image_sharp)
+                cv2.imwrite(root +  '/Good/' + os.path.basename(self.fname), self.image_sharp)
             if self.status == 'Haze':
-            	cv2.imwrite(root +  '/Haze/' + os.path.basename(self.fname), self.image_sharp)
+                cv2.imwrite(root +  '/Haze/' + os.path.basename(self.fname), self.image_sharp)
             if self.status == 'Bright':
-            	cv2.imwrite(root +  '/Bright/' + os.path.basename(self.fname), self.image_sharp)
+                cv2.imwrite(root +  '/Bright/' + os.path.basename(self.fname), self.image_sharp)
             if self.status  == 'Dark':
-            	cv2.imwrite(root +  '/Dark/' + os.path.basename(self.fname), self.image_sharp)
+                cv2.imwrite(root +  '/Dark/' + os.path.basename(self.fname), self.image_sharp)
             if self.status == 'Bad':
-            	cv2.imwrite(root +  '/Bad/' + os.path.basename(self.fname), self.image_sharp)
+                cv2.imwrite(root +  '/Bad/' + os.path.basename(self.fname), self.image_sharp)
     
 
 
@@ -802,20 +805,20 @@ class Color_Image:
         # print(len(binary_images))
 
         # for j, b_image  in enumerate(binary_images):
-        # 	image = np.asarray(bytearray(b_image), dtype="uint8")
-        # 	g = cv2.imdecode(image,cv2.IMREAD_COLOR)
-        # 	cv2.imshow('reconverted' + str(j),g)
+        #   image = np.asarray(bytearray(b_image), dtype="uint8")
+        #   g = cv2.imdecode(image,cv2.IMREAD_COLOR)
+        #   cv2.imshow('reconverted' + str(j),g)
         # cv2.waitKey(0)
 
         try:
             sqliteConnection = sqlite3.connect('D:/photo_info.db')
             cursor = sqliteConnection.cursor()
-        	# print("Connected to SQLite")
+            # print("Connected to SQLite")
 
             sqlite_insert_with_param = """INSERT INTO [""" + t_name + """]
-        	                  (image_id,file_path,file_name,orientation,image_original,image_gs,image_dns,image_dhz,image_sharp, brightness,
+                              (image_id,file_path,file_name,orientation,image_original,image_gs,image_dns,image_dhz,image_sharp, brightness,
                                contrast,haze_factor,hough_lines, hough_length,contours,laplacian, variance, shv, puter_says, status,harris ) 
-        	                  VALUES (?, ?, ?,? , ?, ?, ?,? ,  ?,? , ?, ?, ?, ?, ?,? , ?, ?, ?,?,?);"""
+                              VALUES (?, ?, ?,? , ?, ?, ?,? ,  ?,? , ?, ?, ?, ?, ?,? , ?, ?, ?,?,?);"""
 
                               #,image_original,image_gs,image.dns, image_dhz, image_sharp, brightness, contrast,haze_factor,hough_lines, hough_length,contours,laplacian, variance, black_pixels, white_pixels, shv, puter_says,status,orie) 
                               #?, ?,  ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?,?
@@ -832,7 +835,7 @@ class Color_Image:
             print("Failed to insert Python variable into sqlite table", error)
         finally:
             if sqliteConnection:
-            	sqliteConnection.close()
+                sqliteConnection.close()
             print("The SQLite connection is closed")
 
 
@@ -842,13 +845,13 @@ class Color_Image:
         if  self.hough_info[1] < 30 or self.contour_info[0] < 75 or (self.hough_info[1] == 300 and self.hough_info[0] > 250) or \
                 self.hough_info == (3,75) or self.brightness < 90 and self.contour_info[0] > 800 or self.contrast < 20 and self.shv * 100 < 5 \
                 or self.hough_info[0] > 100: 
-        	self.status = "Bad"
+            self.status = "Bad"
         if self.brightness > 140 and self.haze_factor > 15:
-        	self.status = "Haze"
+            self.status = "Haze"
         if self.brightness > 175:
-        	self.status = "Bright"
+            self.status = "Bright"
         if self.brightness < 40:
-        	self.status = "Dark"
+            self.status = "Dark"
 
 
         pass
@@ -881,7 +884,7 @@ class Color_Image:
 
  
 class Segment(Color_Image):
-	def __init__(self,image_id,fname,segment,segment_id):
-		super(). __init__(image_id,fname,segment)
+    def __init__(self,image_id,fname,segment,segment_id):
+        super(). __init__(image_id,fname,segment)
 
-		self.segment_id = segment_id
+        self.segment_id = segment_id

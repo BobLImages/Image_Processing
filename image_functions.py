@@ -19,44 +19,44 @@ from numpy.linalg import norm
 from segment_class import *
 
 
-def set_brightness_down(img,a): 	
+def set_brightness_down(img,a):     
 
-	org_brightness = get_brightness(img)
-	hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-	h, s, v = cv2.split(hsv)
-	#print(hsv[...,2].max())
-	if hsv[...,2].min()  < 255:
-		lim = 0 
-		v[v < lim] = 0
-		v[v >= lim] -= 30
+    org_brightness = get_brightness(img)
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    h, s, v = cv2.split(hsv)
+    #print(hsv[...,2].max())
+    if hsv[...,2].min()  < 255:
+        lim = 0 
+        v[v < lim] = 0
+        v[v >= lim] -= 30
 
-	final_hsv = cv2.merge((h, s, v))
-	img = cv2.cvtColor(final_hsv, cv2.COLOR_HSV2BGR)
-	#print(org_brightness, get_brightness(img))
-	return img
+    final_hsv = cv2.merge((h, s, v))
+    img = cv2.cvtColor(final_hsv, cv2.COLOR_HSV2BGR)
+    #print(org_brightness, get_brightness(img))
+    return img
 
-def desaturate(img,a): 	
+def desaturate(img,a):  
 
-	# org_brightness = get_brightness(img)
-	hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-	h, s, v = cv2.split(hsv)
-	# print(hsv[...,2].max())
-	if hsv[...,1].min() < 15:
-		lim = 0 
-		v[v < lim] = 0
-	final_hsv = cv2.merge((h, s, v))
-	img = cv2.cvtColor(final_hsv, cv2.COLOR_HSV2BGR)
-	# print(org_brightness, get_brightness(img))
-	return img
+    # org_brightness = get_brightness(img)
+    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+    h, s, v = cv2.split(hsv)
+    # print(hsv[...,2].max())
+    if hsv[...,1].min() < 15:
+        lim = 0 
+        v[v < lim] = 0
+    final_hsv = cv2.merge((h, s, v))
+    img = cv2.cvtColor(final_hsv, cv2.COLOR_HSV2BGR)
+    # print(org_brightness, get_brightness(img))
+    return img
 
-	#print('XXXXXXXXXXXXXXXX',a)
-	img_lab = cv2.cvtColor(img, cv2.COLOR_BGR2Lab)
-	img_mod = img_lab.copy()
-	img_mod[:, :, 0] = (a * img_mod[:, :, 0]).astype(np.uint8)
+    #print('XXXXXXXXXXXXXXXX',a)
+    img_lab = cv2.cvtColor(img, cv2.COLOR_BGR2Lab)
+    img_mod = img_lab.copy()
+    img_mod[:, :, 0] = (a * img_mod[:, :, 0]).astype(np.uint8)
 
-	img_mod = cv2.cvtColor(img_mod, cv2.COLOR_Lab2BGR)
+    img_mod = cv2.cvtColor(img_mod, cv2.COLOR_Lab2BGR)
 
-	return img_mod
+    return img_mod
 
 def DarkChannel(img,sz):
     b,g,r = cv2.split(img)
@@ -129,35 +129,15 @@ def Recover(img,t,A,tx = 0.1):
     return res
 
 def resize_file(fn, ratio):
-			# 	if  image.image_gs.shape[0] > image.image_gs.shape[1]: 
-		# 		image.image_gs = cv2.rotate(image.image_gs, cv2.cv2.ROTATE_90_CLOCKWISE)
+            #   if  image.image_gs.shape[0] > image.image_gs.shape[1]: 
+        #       image.image_gs = cv2.rotate(image.image_gs, cv2.cv2.ROTATE_90_CLOCKWISE)
 
-	img = cv2.imread(fn)
-	#print(fn)
-	r_s = img
-	#print(r_s.shape)
-	aspect_ratio = r_s.shape[0]/r_s.shape[1]
-	#print(r_s.shape,"f")
-	if r_s.shape[1] > r_s.shape[0]:
-		p = "Landscape"
-	else:
-		p = "Portrait"
-	scale_percent = ratio
-
-	rs_height = int(r_s.shape[0] * scale_percent / 100)
-	rs_width = int(r_s.shape[1] * scale_percent / 100)			
-
-	rs_dim = (rs_width, rs_height)
-	r_src = cv2.resize(r_s,rs_dim, interpolation = cv2.INTER_AREA).astype(np.uint16)
-
-	return (r_src)
-
-def resize_image(img, ratio):
-		# 	if  image.image_gs.shape[0] > image.image_gs.shape[1]: 
-	# 		image.image_gs = cv2.rotate(image.image_gs, cv2.cv2.ROTATE_90_CLOCKWISE)
+    img = cv2.imread(fn)
+    #print(fn)
     r_s = img
+    #print(r_s.shape)
     aspect_ratio = r_s.shape[0]/r_s.shape[1]
-    #print(r_s.shape,"i")
+    #print(r_s.shape,"f")
     if r_s.shape[1] > r_s.shape[0]:
         p = "Landscape"
     else:
@@ -165,22 +145,52 @@ def resize_image(img, ratio):
     scale_percent = ratio
 
     rs_height = int(r_s.shape[0] * scale_percent / 100)
-    rs_width = int(r_s.shape[1] * scale_percent / 100)			
+    rs_width = int(r_s.shape[1] * scale_percent / 100)          
 
     rs_dim = (rs_width, rs_height)
     r_src = cv2.resize(r_s,rs_dim, interpolation = cv2.INTER_AREA).astype(np.uint16)
 
+    return (r_src)
+
+
+
+
+def resize_image(img, scale_percent):
+        #   if  image.image_gs.shape[0] > image.image_gs.shape[1]: 
+    #       image.image_gs = cv2.rotate(image.image_gs, cv2.cv2.ROTATE_90_CLOCKWISE)
+    r_s = img
+    # cv2.imshow('resize',r_s)
+    # cv2.waitKey()
+    aspect_ratio = r_s.shape[0]/r_s.shape[1]
+    #print(r_s.shape,"i")
+    if r_s.shape[1] > r_s.shape[0]:
+        p = "Landscape"
+    else:
+        p = "Portrait"
+
+    rs_height = int(r_s.shape[0] * scale_percent / 100)
+    rs_width = int(r_s.shape[1] * scale_percent / 100)          
+
+    rs_dim = (rs_width, rs_height)
+    print(rs_dim)
+    r_src = cv2.resize(r_s,rs_dim, interpolation = cv2.INTER_AREA).astype(np.uint8)
+
+    # cv2.imshow('after resize',r_src)
+    # cv2.waitKey()
+
+
+
     return (r_src,p)
 
 def image_grayscale(img):
-	return cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_BGR2GRAY)
+    return cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_BGR2GRAY)
 
 def convert_PIL2CV(img):
-	
-	cv_image = np.array(img) 
-	# Convert RGB to BGR 
-	cv_image = cv_image[:, :, ::-1].copy() 
-	return cv_image
+    
+    cv_image = np.array(img) 
+    # Convert RGB to BGR 
+    cv_image = cv_image[:, :, ::-1].copy() 
+    return cv_image
 
 def edge_tracking(img, weak, strong=255):
 
@@ -288,6 +298,5 @@ def gaussian_blur(size=5, sigma=1.4):
     normal = 1 / (2.0 * np.pi * sigma**2)
     g =  np.exp(-((x**2 + y**2) / (2.0*sigma**2))) * normal
     return g
-
 
 
