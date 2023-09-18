@@ -1,6 +1,9 @@
 import pandas as pd
 from file_functions_2 import *
 from tkinter import messagebox
+from data_handler import *
+
+    
 
 
 class ImageProcessor:
@@ -34,7 +37,8 @@ class ImageProcessor:
         'Variance': 'Variance',
         'Orientation': 'Orientation',
         'Brightness':'Brightness',
-        'Contrast': 'Contrast'
+        'Contrast': 'Contrast',
+        'Laplacian': 'Laplacian'
 
        
     }
@@ -49,30 +53,89 @@ class ImageProcessor:
         'Grayscale_Image', 'Denoised_Image', 'Dehazed_Image', 'Sharpened_Image'
     ]
 
-    # original_directory =
 
-    # excel_file =
+    statistics_window = None
+    sort_order = None
 
-    # sql_file =
+    @classmethod
+    def initialize(cls, dir_path):
+        cls.original_directory = dir_path
+        parent_directory, data_file_name = os.path.split(dir_path)
+        cls.excel_path = "d:/Image Data Files/" + data_file_name + '.xlsx'
+        cls.sql_path = "d:/Image Data Files sql/" + data_file_name + '.db'
+        cls.table_sheet = data_file_name 
+        cls.accepted_dir = os.path.join(dir_path, 'Accept')
+        cls.rejected_dir = os.path.join(dir_path, 'Reject')
 
-    # excel_exists =
-
-    # sql_exists =
-
-
+        # Check whether xlsx exists
+        cls.excel_exists = os.path.exists(cls.excel_path)
+        cls.sql_exists = os.path.exists(cls.sql_path)
 
 
+    @classmethod
+    def get_cumlative_stats(cls,images_pd):
+        # Specify the columns you want to calculate statistics for
+        selected_columns = [
+            'Brightness', 'Contrast', 'Haze_Factor', 'Hough_Info',
+            'Hough_Circles', 'Harris_Corners', 'Contour_Info',
+            'Laplacian', 'SHV', 'Variance',
+            'Black_Pixels', 'Mid_tone_Pixels', 'White_Pixels'
+        ]
 
+        # Calculate mean, min, max, and std for the selected columns
+        cls.stats = images_pd[selected_columns].agg(['mean', 'min', 'max', 'std'])
+        # Transpose the statistics DataFrame to have columns as rows
+        cls.stats = cls.stats.transpose()
 
+        # Rename the columns for clarity
+        cls.stats.columns = ['Mean', 'Min', 'Max', 'Std']
 
-
-
+        # print(cls.stats)
 
 
     def __init__(self):
         # Initialize the DataFrame with the predefined column names
         self.images_pd = pd.DataFrame(columns=self.column_names)
-        # self.
+        self.sorted_pd = None
+
+    def load_data_from_data_handler(self, source):
+
+       # print('--',source)
+        # Call the DataHandler to load data
+        data_handler = DataHandler()
+        if source == "excel":
+            self.images_pd = data_handler.load_from_excel(ImageProcessor.original_directory, ImageProcessor.excel_path,ImageProcessor.table_sheet)
+        elif source == "sql":
+            self.images_pd = data_handler.load_from_sql(ImageProcessor.sql_path, ImageProcessor.table_sheet)
+        else:
+            # Handle an invalid source if needed
+            self.images_pd = None
+
+        # print(self.images_pd)
+        ImageProcessor.get_cumlative_stats(self.images_pd)
+
+
+
+
+        return self.images_pd
+
+
+
+    def save_data_from_data_handler(self,source):
+
+        # print(self.images_pd)
+        # Call the DataHandler to load data
+        data_handler = DataHandler()
+        if source == "excel":
+            data_handler.save_data_to_excel(self.images_pd, self.excel_path,self.table_sheet)
+        elif source == "sql":
+            data_handler.save_data_to_sql(self.images_pd, self.sql_path,self.table_sheet)
+        else:
+            # Handle an invalid source if needed
+            self.images_pd = None
+
+        return self.images_pd
+
 
     def load_file_for_display(self, index):
         """
@@ -85,15 +148,12 @@ class ImageProcessor:
             np.ndarray: The loaded and resized file data.
         """
         
-        print(index)
+        # print(index)
         # Get the file path and image orientation for the specified index
-        file_path = self.images_pd.at[index, 'File_Name']
-        image_orientation = self.images_pd.at[index, 'Orientation']
-        image_id = self.images_pd.at[index, 'Image_ID']
-        print(file_path, image_orientation, image_id)
-       
-
-
+        file_path = self.sorted_pd.at[index, 'File_Name']
+        image_orientation = self.sorted_pd.at[index, 'Orientation']
+        image_id = self.sorted_pd.at[index, 'Image_ID']
+        # print(file_path, image_orientation, image_id)
 
         # Load the file
         image = cv2.imread(file_path)
@@ -106,14 +166,25 @@ class ImageProcessor:
 
         return resized_image
 
-    def create_plots(self, excel_file, attributes):
-        images_pd = self.load_data(excel_file)
+
+
+    def create_plots(self, attributes):
         num_plots = len(attributes)
         fig, axes = plt.subplots(1, num_plots, figsize=(5 * num_plots, 5))
 
+        # Define color mapping for classifications
+        color_map = {'G': 'green', 'B': 'red', 'U': 'blue'}
+
         for idx, attribute in enumerate(attributes):
             ax = axes[idx]
-            ax.scatter(self.images_pd['Image_ID'], self.images_pd[attribute])
+            
+            # Get the classifications for this attribute (assuming it's in a column named 'Classification')
+            classifications = self.images_pd['Classification']
+            
+            # Map the classifications to colors using the color_map
+            colors = classifications.map(color_map)
+            
+            ax.scatter(self.images_pd['Image_ID'], self.images_pd[attribute], c=colors)
             ax.set_xlabel('Image ID')
             ax.set_ylabel(attribute)
             ax.set_title(attribute)
@@ -123,18 +194,18 @@ class ImageProcessor:
 
 
 
-
-
-
-
-    def generate_statistics_image(self, row, resized_image, background_color=(0, 0, 0), text_color=(255, 255, 255),
+    def generate_statistics_image(self, row, background_color=(0, 0, 0), text_color=(255, 255, 255),
                                   text_size=0.5, text_thickness=1, text_position=(50, 50)):
 
+       # Check if a statistics window is open and close it if it exists
+        if self.statistics_window is not None:
+            cv2.destroyWindow(self.statistics_window)
+            self.statistics_window = None
 
         data = {'Attribute': [], 'Value': []}
 
         # Add the statistics to the DataFrame
-        data['Attribute'].append('Image Statistics for directory:')
+        data['Attribute'].append('')
         data['Value'].append(os.path.dirname(row['File_Name']))
         data['Attribute'].append('')
         data['Value'].append('')
@@ -147,18 +218,37 @@ class ImageProcessor:
                 data['Attribute'].append(self.column_mapping[column] + ':')
                 data['Value'].append(str(value))
 
+        
+
+
             # Create the DataFrame from the data
         df = pd.DataFrame(data)
 
-        # Convert the DataFrame to a formatted table
-        table_text = df.to_string(index=False, header=False, justify='left')
+        # Define fixed widths for columns
+        attribute_width = 30
+        value_width = 15
 
+        # Convert the DataFrame to a formatted table with fixed widths
+        table_text = ''
+        for attribute, value in zip(data['Attribute'], data['Value']):
+            attribute = attribute[:attribute_width].rjust(attribute_width)
+            value = value[:value_width].ljust(value_width)
+            table_text += attribute + value + '\n'
+
+        # Remove the trailing newline
+        table_text = table_text.rstrip()        
+
+
+        # Convert the DataFrame to a formatted table
+        # table_text = df.to_string(index=False, header=False, justify='left')
+        # print(table_text)
+        
         # Split the table text into lines
         text_lines = table_text.split('\n')
 
         # Calculate the dimensions of the statistics image
         attribute_offset = 20  # Offset for the attribute column
-        value_offset = 150  # Offset for the value column
+        value_offset = 200  # Offset for the value column
 
         # Calculate the maximum text width
         max_text_width = max(
@@ -166,11 +256,14 @@ class ImageProcessor:
             for line in text_lines
         )
 
+
         # Calculate the overlay coordinates on the resized image
         overlay_start = (text_position[0], text_position[1])
-        overlay_end = (overlay_start[0] + value_offset + max_text_width - 100,
+        overlay_end = (overlay_start[0] + value_offset + max_text_width - 5,
                        overlay_start[1] + len(text_lines) * attribute_offset + 30)
 
+
+ 
         # Create the statistics image
         statistics_image = np.zeros(
             (overlay_end[1] - overlay_start[1], overlay_end[0] - overlay_start[0], 3), dtype=np.uint8)
@@ -187,33 +280,24 @@ class ImageProcessor:
                 parts = line.split(":", maxsplit=1)
                 if len(parts) == 2:
                     attribute, value = parts
+                    # print(attribute, '-', value)
                 else:
                     attribute = line.strip()
                     value = ""  # Set a default value if needed
 
                 # Strip the first 10 characters from the attribute and remove underscores
                 attribute = attribute[10:].strip('_')
-
+                # print(attribute)
+                
                 attribute_position = (0, (i + 1) * attribute_offset)
                 value_position = (value_offset, (i + 1) * attribute_offset)
+                # print(attribute_position,value_position)
 
-                cv2.putText(statistics_image, attribute, attribute_position, cv2.FONT_HERSHEY_SIMPLEX,
-                            text_size, text_color, text_thickness)
                 cv2.putText(statistics_image, value, value_position, cv2.FONT_HERSHEY_SIMPLEX,
                             text_size, text_color, text_thickness)
-
-        # Create a copy of the resized image
-        overlay_image = resized_image.copy()
-
-        # Overlay the statistics image onto the copy of the resized image
-        overlay_image[overlay_start[1]:overlay_end[1], overlay_start[0]:overlay_end[0]] = statistics_image
-
-        # Blend the overlay image with the resized image using transparency
-        alpha = 0.9 # Adjust the transparency as needed
-        blended_image = cv2.addWeighted(resized_image, 1 - alpha, overlay_image, alpha, 0)
-
-        return blended_image
-
+                cv2.putText(statistics_image, attribute, attribute_position, cv2.FONT_HERSHEY_SIMPLEX,
+                            text_size, text_color, text_thickness)
+        return statistics_image
 
     def get_sharpened_image(sharpened_image_data):
 
@@ -225,84 +309,7 @@ class ImageProcessor:
     def get_dataframe_records(self):
         return self.images_pd.values.tolist()    
 
-    def load_data(self, excel_file=None, sql_file=None, table_name=None):
-        if sql_file and table_name:
-            # Load data from SQL
-            conn = sqlite3.connect(sql_file)
-            query = f"SELECT * FROM {table_name}"
-            self.images_pd = pd.read_sql_query(query, conn)
-            conn.close()
-        elif excel_file:
-            # Load data from Excel
-            self.images_pd = pd.read_excel(excel_file)
-        else:
-            # Handle case where neither SQL nor Excel files are provided
-            raise ValueError("Either Excel file or SQL file and table name must be provided.")
-        
-        return self.images_pd
 
-
-    def save_dataframe(self, file_type, table_name=None):
-        overwrite = False
-        save_data = False
-
-        if file_type == 'excel':
-            file_ext = 'xlsx'
-            folder_path = "D:/Image Data Files/"
-            file_exists_msg = "The Excel file already exists. Do you want to overwrite it?"
-            file_not_exists_msg = "The Excel file does not exist. Do you want to save the data?"
-        elif file_type == 'sql':
-            file_ext = 'db'
-            folder_path = "D:/Image Data Files SQL/"
-            file_exists_msg = "The SQL file already exists. Do you want to overwrite it?"
-            file_not_exists_msg = "The SQL file does not exist. Do you want to save the data?"
-
-        file_path = os.path.join(folder_path, os.path.basename(os.path.dirname(self.images_pd['File_Name'][0])) + f'.{file_ext}')
-
-        print(file_path)
-
-        if os.path.exists(file_path):
-            # Prompt the user with a message box to confirm overwriting
-            overwrite = messagebox.askyesno("File Exists", file_exists_msg)
-            if not overwrite:
-                print("Operation canceled. Existing file will not be overwritten.")
-                return
-        else:
-            # Prompt the user with a message box to confirm saving the data
-            save_data = messagebox.askyesno("File Does Not Exist", file_not_exists_msg)
-            if not save_data:
-                print("Data not saved.")
-                return
-
-        if overwrite or save_data:
-            if file_type == 'excel':
-                # Save to Excel
-                columns_to_include = self.images_pd.columns[:-4]
-                data_subset = self.images_pd[columns_to_include]                
-                data_subset.to_excel(file_path, index=False)
-            
-            elif file_type == 'sql':
-                # Connect to the SQLite database
-                sqliteConnection = sqlite3.connect(file_path)
-
-                # Replace spaces with underscores in column names
-                self.images_pd.columns = self.images_pd.columns.str.replace(' ', '_')
-
-                # Save the DataFrame to the SQL database
-                try:
-                    self.images_pd.to_sql(table_name, sqliteConnection, if_exists='replace', index=False)
-                    print(f"Data from DataFrame has been inserted in {table_name} table")
-                except sqlite3.Error as error:
-                    print("Failed to insert data into sqlite table", error)
-                finally:
-                    sqliteConnection.close()
-                    print("The SQLite connection is closed")
-
-            print(f"Data saved to {file_type} file: {file_path}")
-            # view_btn['state'] = 'normal'
-            # view_btn.pack()
-
-        return self.images_pd
 
     def create_dataframe(self, images, dir_path):
         # Your image processing code here
@@ -311,18 +318,10 @@ class ImageProcessor:
         batch_size = 25
         data_list = []
 
-        # self.images_pd = pd.DataFrame(
-        #     columns=['Image_ID', 'File_Name', 'Orientation', 'Brightness', 'Contrast', 'Haze_Factor', 'Hough_Info',
-        #              'Hough_Circles', 'Harris_Corners', 'Contour_Info', 'Laplacian', 'SHV', 'Variance',
-        #              'Exposure', 'F_Stop', 'ISO', 'Black_Pixels', 'Mid_tone_Pixels', 'White_Pixels',
-        #              'Faces', 'Eyes', 'Bodies', 'Focal_Length', 'Classification', 'Original_Image',
-        #              'Grayscale_Image', 'Denoised_Image', 'Dehazed_Image', 'Sharpened_Image'
-        #             ])
-
-            # Populate the DataFrame with the data
+    # Populate the DataFrame with the data
         for image in images:
-            print(image.image_id)
-            print(image.fname)
+            # print(image.image_id)
+            # print(image.fname)
             data_list.append({
                 'Image_ID': image.image_id +1,
                 'File_Name': image.fname,
@@ -358,25 +357,23 @@ class ImageProcessor:
 
        # Create the DataFrame from the list of dictionaries
         self.images_pd = pd.DataFrame(data_list, columns = self.column_names)
-        print("All Image_ID values in the Create_DataFrame:")
-        print(self.images_pd['Image_ID'].tolist())
+        ImageProcessor.initialize(dir_path)
 
-        # Print all the File_Name values in the DataFrame
-        print("All File_Name values in the Create_DataFrame:")
-        print(self.images_pd['File_Name'].tolist())
+        
+        # print(ImageProcessor.original_directory)
+
+        # print("All Image_ID values in the Create_DataFrame:")
+        # print(self.images_pd['Image_ID'].tolist())
+
+        # # Print all the File_Name values in the DataFrame
+        # print("All File_Name values in the Create_DataFrame:")
+        # print(self.images_pd['File_Name'].tolist())
+
+        return self.images_pd
 
     
 
-
-
-
-
-
-
-
-
-
-    def process_images(self, dir_path):
+    def process_images(self, dir_path,excel_path,sql_path):
         # Your image processing code here
         scale = 20
         enhanced_actions = False
@@ -384,35 +381,65 @@ class ImageProcessor:
 
         fnames = get_files(dir_path)
         images = load_images_batch(fnames, scale, enhanced_actions, batch_size)
-        self.create_dataframe(images,dir_path)
-        self.save_dataframe('excel')
+        self.images_pd = self.create_dataframe(images,dir_path)
+        # print("Image Processor process_images method", self.images_pd)
+        
+
+
+        self.save_data_from_data_handler('excel')
+        self.save_data_from_data_handler('sql')
 
 
 
-    def view_images(self, dir_path, excel_file, key_handler, file_ops):
-        images_pd = self.load_data(excel_file)
+    def view_images(self, data_source, sort_source,key_handler):
+        print(data_source)
+        self.images_pd = self.load_data_from_data_handler(data_source)
+        if sort_source == 'original':
+            self.sorted_pd = self.images_pd
+        elif sort_source == 'brightness':
+            self.sorted_pd = self.images_pd.sort_values(by='Brightness')
+        elif sort_source == 'contours':
+            self.sorted_pd = self.images_pd.sort_values(by='Contour_Info')
+        elif sort_source == 'laplacian':
+            self.sorted_pd = self.images_pd.sort_values(by='Laplacian')
 
-        # Set rows and columns for the image grid
+        # Add a new column 'original_index' to store the original index values
+        self.sorted_pd['original_index'] = self.sorted_pd.index
+
+        # Reset the index
+        self.sorted_pd.reset_index(drop=True, inplace=True)
+
+        # Print column names
+        print("Column names of Sorted DataFrame:")
+        print(self.sorted_pd.columns)
+
+
+        print("Sorted DataFrame with reset index:")
+        print(self.sorted_pd)
+
+
+
         rows = 5
         columns = 7
 
         landscape_data = create_grids(1344, 2018, rows, columns)
         portrait_data = create_grids(1344, 896, columns, rows)
 
-        accepted_dir = os.path.join(dir_path, 'Accept')
-        rejected_dir = os.path.join(dir_path, 'Reject')
-        os.makedirs(accepted_dir, exist_ok=True)
-        os.makedirs(rejected_dir, exist_ok=True)
+        os.makedirs(ImageProcessor.accepted_dir, exist_ok=True)
+        os.makedirs(ImageProcessor.rejected_dir, exist_ok=True)
 
         record_index = 0
-        num_images = len(images_pd)
-        print(num_images)
+        num_images = len(self.sorted_pd)
 
         while record_index < num_images:
-            row = self.images_pd.iloc[record_index]
+            # row = self.images_pd.iloc[record_index]
+            row = self.sorted_pd.iloc[record_index]
+            image_id = row['Image_ID']
+            
+
             # print('Outer Loop:', record_index)
             # print(row['File_Name'], row['Orientation'])
-            print(row)
+            #print(row)
             resized_image = self.load_file_for_display(record_index)
 
             # Draw the rectangles on the resized image based on the image orientation
@@ -431,14 +458,30 @@ class ImageProcessor:
                 rectangle_end = (nw_point[0] + zone_height, nw_point[1] + zone_width)
                 cv2.rectangle(resized_image, rectangle_start, rectangle_end, (255, 255, 255), 2)
 
-            print(row,resized_image.shape)
-            resized_image = self.generate_statistics_image(row, resized_image, background_color=(0, 0, 0),
+            # print(row,resized_image.shape)
+            statistics_image = self.generate_statistics_image(row, background_color=(0, 0, 0),
                                                       text_color=(0, 255, 255),
                                                       text_size=0.5, text_thickness=1, text_position=(10, 10))
 
-            # Show the modified image
+            # Show the resized and statistics_images
+            
+
             converted_image = cv2.convertScaleAbs(resized_image)
+
+
+            # Get the width and height of the modified image
+            height, width, _ = converted_image.shape
+
             cv2.imshow("Modified Image", converted_image)
+            cv2.imshow('Image Statistics', statistics_image)
+            
+            # Set the position of the "Modified Image" window
+            cv2.moveWindow("Modified Image", 0, 0)  # Place it at the upper-left corner (0, 0)
+
+            # Set the position of the "Image Statistics" window
+            # Assuming that the "Modified Image" window ends at (width, height)
+            cv2.moveWindow('Image Statistics', width, 0)  # Place it at the top where the other window ends
+
 
             change_classification = False  # Initialize the flag for each image
             should_terminate = False
@@ -450,7 +493,7 @@ class ImageProcessor:
 
                 change_classification, key = key_handler(key)
 
-                print(key)
+                # print(key)
                 if key == 2621440:
                     new_record_index = record_index + 1
                 if key == 2490368:
@@ -460,7 +503,8 @@ class ImageProcessor:
                 elif key == 2359296:
                     new_record_index = 0
                 elif key == 27:
-                    self.images_pd.to_excel(excel_file, index=False)
+                    self.images_pd.to_excel(ImageProcessor.excel_path, index=False)
+                    self.sorted_pd = None
                     cv2.destroyAllWindows()
                     return 
                 else:
@@ -468,32 +512,49 @@ class ImageProcessor:
 
                 # If change_classification is True, perform file operations and reset the flag
                 if change_classification and new_record_index != num_images:
-                    print('cc =:', change_classification, new_record_index, num_images, key)
+                    # print('cc =:', change_classification, new_record_index, num_images, key)
                     if key in (ord('g'), ord('G')):
-                        print('here < ')
-                        self.images_pd.at[record_index, 'Classification'] = 'G'
+                        self.sorted_pd.at[record_index, 'Classification'] = 'G'
+                        original_index = self.sorted_pd.loc[record_index, 'original_index']
+                        self.images_pd.at[original_index, 'Classification'] = 'G'
+
                     if key in (ord('b'), ord('B')):
-                        self.images_pd.at[record_index, 'Classification'] = 'B'
-                    self.images_pd = file_ops(self.images_pd, record_index, excel_file)
+                        self.sorted_pd.at[record_index, 'Classification'] = 'B'
+                        original_index = self.sorted_pd.loc[record_index, 'original_index']
+                        self.images_pd.at[original_index, 'Classification'] = 'B'
+
+                    self.file_ops(original_index)
                     change_classification = False
                     record_index = new_record_index
                     break
                 elif change_classification and new_record_index == num_images:
-                    print('cc =:', change_classification, new_record_index, num_images, key)
+                    # print('cc =:', change_classification, new_record_index, num_images, key)
                     if key in (ord('g'), ord('G')):
-                        print('here ==')
-                        images_pd.at[record_index, 'Classification'] = 'G'
+                        self.sorted_pd.at[record_index, 'Classification'] = 'G'
+                        original_index = self.sorted_pd.loc[record_index, 'original_index']
+                        self.images_pd.at[original_index, 'Classification'] = 'G'
+
                     if key in (ord('b'), ord('B')):
-                        images_pd.at[record_index, 'Classification'] = 'B'
-                    self.images_pd = file_ops(images_pd, record_index, excel_file)
+                        self.sorted_pd.at[record_index, 'Classification'] = 'B'
+                        original_index = self.sorted_pd.loc[record_index, 'original_index']
+                        self.images_pd.at[original_index, 'Classification'] = 'B'
+
+                    self.file_ops(original_index)
+                    self.sorted_pd = None
                     cv2.destroyAllWindows()
                     return
 
                 elif new_record_index == num_images and not change_classification:
-                    # Save the DataFrame back to the Excel file at the end
-                    self.images_pd.to_excel(excel_file, index=False)
-                    cv2.destroyAllWindows()
-                    return
+                    record_index = 0
+                    break
+
+
+
+
+                    # # Save the DataFrame back to the Excel file at the end
+                    # self.images_pd.to_excel(ImageProcessor.excel_path, index=False)
+                    # cv2.destroyAllWindows()
+                    # return
 
                 else:
                     record_index = new_record_index
@@ -507,3 +568,45 @@ class ImageProcessor:
         # # Save the DataFrame back to the Excel file at the end
         # images_pd.to_excel(excel_file, index=False)        
 
+
+
+    def file_ops(self,index):
+        original_file_path = self.images_pd.at[index, 'File_Name']
+        file_name = os.path.basename(original_file_path)
+        parent_directory = os.path.dirname(original_file_path)
+
+        # Determine the classification prefix and the destination directory
+        classification = self.images_pd.at[index, 'Classification']
+        if classification == 'G':
+            destination_dir = ImageProcessor.accepted_dir
+        elif classification == 'B':
+            destination_dir = ImageProcessor.rejected_dir
+        else:
+            destination_dir = ImageProcessor.original_directory
+        
+        # Create the destination directory if it doesn't exist
+        os.makedirs(destination_dir, exist_ok=True)
+
+        # Rename and copy the original file by adding the classification prefix
+        new_file_path = os.path.join(destination_dir, classification + file_name)
+        print("Renaming and copying:", original_file_path, "to", new_file_path)
+
+        # Perform the actual copy from the original file to the new destination
+        shutil.copy(original_file_path, new_file_path)
+
+        # Save the updated DataFrame back to the Excel file
+        self.images_pd.to_excel(ImageProcessor.excel_path, index=False)
+     
+
+
+   # def initialize(cls, dir_path):
+   #      cls.original_directory = dir_path
+   #      parent_directory, data_file_name = os.path.split(dir_path)
+   #      cls.excel_path = "d:/Image Data Files/" + data_file_name + '.xlsx'
+   #      cls.sql_path = "d:/Image Data Files sql/" + data_file_name + '.db'
+   #      cls. = os.path.join(dir_path, 'Accept')
+   #      cls.rejected_dir = os.path.join(dir_path, 'Reject')
+
+
+    # Return the updated DataFrame with the changed classifications
+    #return images_pd

@@ -652,17 +652,17 @@ class Color_Image:
             if tag in 'EXIF DateTimeOriginal':
                 result = str(tags[tag])
                 self.datetimeoriginal = result
-                print(self.datetimeoriginal)
+                #print(self.datetimeoriginal)
 
             if tag in "EXIF BodySerialNumber":
                 result = str(tags[tag])
                 self.bodyserialnumber = result
-                print(self.bodyserialnumber)
+                #print(self.bodyserialnumber)
 
             if tag in "EXIF FocalLength":
                 result = str(tags[tag])
                 self.focal_length = result
-                print(self.focal_length)
+                #print(self.focal_length)
 
     def get_faces(self):
 

@@ -56,7 +56,7 @@ def	get_files(rootdir):
 				print('vvvv' , hhh)
 				fnames.append(File_Name(counter,hhh))
 				counter = counter + 1
-	random.shuffle(fnames)
+	#random.shuffle(fnames)
 	return fnames
 
 def load_images_batch(file_objects, scale, enhanced_actions, batch_size):
@@ -72,6 +72,7 @@ def load_images_batch(file_objects, scale, enhanced_actions, batch_size):
 	
 	#print(fnames)
 	num_batches = len(file_objects) // batch_size + 1
+	total_rec_ctr = 0
 
 	for batch_num in range(num_batches):
 		batch_files = file_objects[batch_num * batch_size: (batch_num + 1) * batch_size]
@@ -81,9 +82,9 @@ def load_images_batch(file_objects, scale, enhanced_actions, batch_size):
 				pass
 			r_src = resize_file(fname.full_path, scale)
 
-			images_for_loading.append(Color_Image(counter, fname.full_path, r_src))
-			
-			print('Loaded', counter + 1, 'of', len(file_objects), 'Images')
+			images_for_loading.append(Color_Image(total_rec_ctr, fname.full_path, r_src))
+			total_rec_ctr += 1
+			print('Loaded', total_rec_ctr, 'of', len(file_objects), 'Images')
 
 	# end_time = time.time()
 	# execution_time_batch = end_time - start_time
@@ -91,17 +92,6 @@ def load_images_batch(file_objects, scale, enhanced_actions, batch_size):
 
 
 	return images_for_loading
-
-
-
-
-
-
-
-
-
-
-
 
 
 
