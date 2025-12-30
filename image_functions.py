@@ -1,302 +1,364 @@
-import time
-from PIL import Image, ImageStat
-import cv2 as cv2
+# image_functions.py
+
+import cv2
 import numpy as np
-import math
-import sys
-import os
-import matplotlib.pyplot as plt
-from skimage.morphology import rectangle
-import skimage.filters as filters
-from skimage import img_as_ubyte
+from PIL import Image
 
-from skimage import io,img_as_float,transform
-from skimage.restoration import denoise_nl_means,estimate_sigma
-from skimage.util import img_as_ubyte
-from scipy import ndimage
-from scipy.ndimage.filters import convolve
-from numpy.linalg import norm
-from segment_class import *
-
-
-def set_brightness_down(img,a):     
-
-    org_brightness = get_brightness(img)
-    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-    h, s, v = cv2.split(hsv)
-    #print(hsv[...,2].max())
-    if hsv[...,2].min()  < 255:
-        lim = 0 
-        v[v < lim] = 0
-        v[v >= lim] -= 30
-
-    final_hsv = cv2.merge((h, s, v))
-    img = cv2.cvtColor(final_hsv, cv2.COLOR_HSV2BGR)
-    #print(org_brightness, get_brightness(img))
-    return img
-
-def desaturate(img,a):  
-
-    # org_brightness = get_brightness(img)
-    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-    h, s, v = cv2.split(hsv)
-    # print(hsv[...,2].max())
-    if hsv[...,1].min() < 15:
-        lim = 0 
-        v[v < lim] = 0
-    final_hsv = cv2.merge((h, s, v))
-    img = cv2.cvtColor(final_hsv, cv2.COLOR_HSV2BGR)
-    # print(org_brightness, get_brightness(img))
-    return img
-
-    #print('XXXXXXXXXXXXXXXX',a)
-    img_lab = cv2.cvtColor(img, cv2.COLOR_BGR2Lab)
-    img_mod = img_lab.copy()
-    img_mod[:, :, 0] = (a * img_mod[:, :, 0]).astype(np.uint8)
-
-    img_mod = cv2.cvtColor(img_mod, cv2.COLOR_Lab2BGR)
-
-    return img_mod
-
-def DarkChannel(img,sz):
-    b,g,r = cv2.split(img)
-    dc = cv2.min(cv2.min(r,g),b);
-    kernel = cv2.getStructuringElement(cv2.MORPH_RECT,(sz,sz))
-    dark = cv2.erode(dc,kernel)
-    #print(dark)
-    return dark
-
-def AtmLight(img,dark):
-    [h,w] = img.shape[:2]
-    imsz = h*w
-    numpx = int(max(math.floor(imsz/1000),1))
-    darkvec = dark.reshape(imsz);
-    imvec = img.reshape(imsz,3);
-
-    indices = darkvec.argsort();
-    indices = indices[imsz-numpx::]
-
-    atmsum = np.zeros([1,3])
-    for ind in range(1,numpx):
-       atmsum = atmsum + imvec[indices[ind]]
-
-    A = atmsum / numpx;
-    return A
-
-def TransmissionEstimate(img,A,sz):
-    omega = 0.5;
-    im3 = np.empty(img.shape,img.dtype);
-
-    for ind in range(0,3):
-        im3[:,:,ind] = img[:,:,ind]/A[0,ind]
-
-    transmission = 1 - omega*DarkChannel(im3,sz);
-    return transmission
-
-def Guidedfilter(img,p,r,eps):
-    mean_I = cv2.boxFilter(img,cv2.CV_64F,(r,r));
-    mean_p = cv2.boxFilter(p, cv2.CV_64F,(r,r));
-    mean_Ip = cv2.boxFilter(img*p,cv2.CV_64F,(r,r));
-    cov_Ip = mean_Ip - mean_I*mean_p;
-    mean_II = cv2.boxFilter(img*img,cv2.CV_64F,(r,r));
-    var_I   = mean_II - mean_I*mean_I;
-
-    a = cov_Ip/(var_I + eps);
-    b = mean_p - a*mean_I;
-
-    mean_a = cv2.boxFilter(a,cv2.CV_64F,(r,r));
-    mean_b = cv2.boxFilter(b,cv2.CV_64F,(r,r));
-
-    q = mean_a*img + mean_b;
-    return q;
-
-def TransmissionRefine(img,et):
-    gray = cv2.cvtColor(img,cv2.COLOR_BGR2GRAY);
-    gray = np.float64(gray)/255;
-    r = 60;
-    eps = 0.0001;
-    t = Guidedfilter(gray,et,r,eps);
-
-    return t;
-
-def Recover(img,t,A,tx = 0.1):
-    res = np.empty(img.shape,img.dtype);
-    t = cv2.max(t,tx);
-
-    for ind in range(0,3):
-        res[:,:,ind] = (img[:,:,ind]-A[0,ind])/t + A[0,ind]
-
-    return res
-
-def resize_file(fn, ratio):
-            #   if  image.image_gs.shape[0] > image.image_gs.shape[1]: 
-        #       image.image_gs = cv2.rotate(image.image_gs, cv2.cv2.ROTATE_90_CLOCKWISE)
-
-    img = cv2.imread(fn)
-    #print(fn)
-    r_s = img
-    #print(r_s.shape)
-    aspect_ratio = r_s.shape[0]/r_s.shape[1]
-    #print(r_s.shape,"f")
-    if r_s.shape[1] > r_s.shape[0]:
-        p = "Landscape"
-    else:
-        p = "Portrait"
-    scale_percent = ratio
-
-    rs_height = int(r_s.shape[0] * scale_percent / 100)
-    rs_width = int(r_s.shape[1] * scale_percent / 100)          
-
-    rs_dim = (rs_width, rs_height)
-    r_src = cv2.resize(r_s,rs_dim, interpolation = cv2.INTER_AREA).astype(np.uint16)
-
-    return (r_src)
-
-
-
-
-def resize_image(img, scale_percent):
-        #   if  image.image_gs.shape[0] > image.image_gs.shape[1]: 
-    #       image.image_gs = cv2.rotate(image.image_gs, cv2.cv2.ROTATE_90_CLOCKWISE)
-    r_s = img
-    # cv2.imshow('resize',r_s)
-    # cv2.waitKey()
-    aspect_ratio = r_s.shape[0]/r_s.shape[1]
-    #print(r_s.shape,"i")
-    if r_s.shape[1] > r_s.shape[0]:
-        p = "Landscape"
-    else:
-        p = "Portrait"
-
-    rs_height = int(r_s.shape[0] * scale_percent / 100)
-    rs_width = int(r_s.shape[1] * scale_percent / 100)          
-
-    rs_dim = (rs_width, rs_height)
-    print(rs_dim)
-    r_src = cv2.resize(r_s,rs_dim, interpolation = cv2.INTER_AREA).astype(np.uint8)
-
-    # cv2.imshow('after resize',r_src)
-    # cv2.waitKey()
-
-
-
-    return (r_src,p)
-
-def image_grayscale(img):
-    return cv2.cvtColor(img.astype(np.uint8), cv2.COLOR_BGR2GRAY)
-
-def convert_PIL2CV(img):
+class ImageFunctions:
+    """
+    Toolbox for image operations.
+    Use static methods for resizing, sharpening, grayscaling, denoising, etc.
+    """
     
-    cv_image = np.array(img) 
-    # Convert RGB to BGR 
-    cv_image = cv_image[:, :, ::-1].copy() 
-    return cv_image
+    @staticmethod
+    def resize_keep_aspect(image, max_width=600, max_height=800):
+        """
+        Resize an image to fit within max_width x max_height while keeping aspect ratio.
+        """
+        if image is None:
+            raise ValueError("resize_keep_aspect received None image")
 
-def edge_tracking(img, weak, strong=255):
+        h, w = image.shape[:2]
+        scale = min(max_width / w, max_height / h)
+        new_w, new_h = int(w * scale), int(h * scale)
+        return cv2.resize(image, (new_w, new_h), interpolation=cv2.INTER_AREA)
 
-    M, N = img.shape
+    @staticmethod
+    def sharpen(image, kernel_strength = 1):
+        """
+        Sharpen an image using a simple kernel.
+        """
+        if image is None:
+            raise ValueError("sharpen received None image")
 
-    for i in range(1, M-1):
-        for j in range(1, N-1):
+        if kernel_strength == 1:
+            kernel = np.array([[0, -1, 0],
+                               [-1, 5, -1],
+                               [0, -1, 0]])
+        elif kernel_strength== 2:
+            kernel = np.array([[-1, -1, -1],
+                               [-1,  9, -1],
+                               [-1, -1, -1]]) / 9.0   # normalized Laplacian, less aggressive
+        
+        elif kernel_strength== 3:
+            kernel = np.array([[-1, -1, -1],
+                               [-1,  6, -1],
+                               [-1, -1, -1]]) / 2.0   # half strength
+        
 
-            if (img[i,j] == weak):
-                try:
-                    if ((img[i+1, j-1] == strong) or (img[i+1, j] == strong) or (img[i+1, j+1] == strong)
-                        or (img[i, j-1] == strong) or (img[i, j+1] == strong)
-                        or (img[i-1, j-1] == strong) or (img[i-1, j] == strong) or (img[i-1, j+1] == strong)):
-                        img[i, j] = strong
-                    else:
-                        img[i, j] = 0
-                except IndexError as e:
-                    pass
-    return img
+        elif kernel_strength == 4:
+            kernel = np.array([[0, -1, 0],
+                               [-1, 5, -1],
+                               [0, -1, 0]])/4.0
 
-def double_thresholding(Z, lowThresholdRatio=0.09, highThresholdRatio=0.17, w_p_v=75):
+        return cv2.filter2D(image, -1, kernel)
 
-    highThreshold = Z.max() * highThresholdRatio;
-    lowThreshold = highThreshold * lowThresholdRatio;
+    @staticmethod
+    def grayscale(image):
+        """
+        Convert a BGR image to grayscale.
+        """
+        if image is None:
+            raise ValueError("grayscale received None image")
+        return cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
-    M, N = Z.shape
-    result = np.zeros((M,N), dtype=np.int32)
+    @staticmethod
+    def denoise(image, h_color=2, h_luminance=2, template_window=7, search_window=21):
+        """
+        Denoise a color image using OpenCV's fastNlMeansDenoisingColored.
+        Parameters are tuned for mild denoising.
+        """
+        if image is None:
+            raise ValueError("denoise received None image")
 
-    weak = np.int32(w_p_v)
-    strong = np.int32(255)
-
-    strong_i, strong_j = np.where(Z >= highThreshold)
-    zeros_i, zeros_j = np.where(Z < lowThreshold)
-
-    weak_i, weak_j = np.where((Z <= highThreshold) & (Z >= lowThreshold))
-
-    result[strong_i, strong_j] = strong
-    result[weak_i, weak_j] = weak
-
-    return (result, weak, strong)
-
-def gradient_calculation(img):
-
-
-    Kx = np.array([[-1, 0, 1], [-2, 0, 2], [-1, 0, 1]], np.float32)
-    Ky = np.array([[1, 2, 1], [0, 0, 0], [-1, -2, -1]], np.float32)
-
-    Ix = ndimage.filters.convolve(img, Kx)
-    Iy = ndimage.filters.convolve(img, Ky)
-
-
-    G = np.hypot(Ix, Iy)
-    G = G / G.max() * 255
-
-
-    theta = np.arctan2(Iy, Ix)
-
-    return (G, theta)
-
-def non_maximum_suppression(G, theta):
-
-    M, N = G.shape
-    Z = np.zeros((M,N), dtype=np.int32)
-    angle = theta * 180. / np.pi
-    angle[angle < 0] += 180
+        # Make sure image is uint8
+        img_uint8 = image.astype(np.uint8)
+        denoised = cv2.fastNlMeansDenoisingColored(
+            img_uint8, None, h_color, h_luminance, template_window, search_window
+        )
+        return denoised
 
 
-    for i in range(1,M-1):
-        for j in range(1,N-1):
-            try:
-                q = 255
-                r = 255
 
-               #angle 0
-                if (0 <= angle[i,j] < 22.5) or (157.5 <= angle[i,j] <= 180):
-                    q = G[i, j+1]
-                    r = G[i, j-1]
-                #angle 45
-                elif (22.5 <= angle[i,j] < 67.5):
-                    q = G[i+1, j-1]
-                    r = G[i-1, j+1]
-                #angle 90
-                elif (67.5 <= angle[i,j] < 112.5):
-                    q = G[i+1, j]
-                    r = G[i-1, j]
-                #angle 135
-                elif (112.5 <= angle[i,j] < 157.5):
-                    q = G[i-1, j-1]
-                    r = G[i+1, j+1]
 
-                if (G[i,j] >= q) and (G[i,j] >= r):
-                    Z[i,j] = G[i,j]
-                else:
-                    Z[i,j] = 0
 
-            except IndexError as e:
-                pass
+    @staticmethod
+    def get_laplacian(image_gs):
+        # compute the Laplacian of the image and then return the focus
+        # measure, which is simply the variance of the Laplacian
+        
+        return cv2.Laplacian(image_gs, cv2.CV_64F,5).var()
 
-    return Z
 
-def gaussian_blur(size=5, sigma=1.4):
+    @staticmethod
+    def get_harris(image_gs):
+        gray = np.float32(image_gs)
+        dst = cv2.cornerHarris(gray,2,3,0.04)
+        dst = cv2.dilate(dst,None)
+        ret, dst = cv2.threshold(dst,0.01*dst.max(),255,0)
+        dst = np.uint8(dst)
+        # find centroids
+        ret, labels, stats, centroids = cv2.connectedComponentsWithStats(dst)
+        # define the criteria to stop and refine the corners
+        criteria = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 100, 0.001)
+        corners = cv2.cornerSubPix(gray,np.float32(centroids),(5,5),(-1,-1),criteria)
+        return len(corners)
 
-    size = int(size) // 2
-    x, y = np.mgrid[-size:size+1, -size:size+1]
-    normal = 1 / (2.0 * np.pi * sigma**2)
-    g =  np.exp(-((x**2 + y**2) / (2.0*sigma**2))) * normal
-    return g
+    @staticmethod
+    def get_brightness(image_sharp):
+        if len(image_sharp.shape) == 3:
+            hsv = cv2.cvtColor(image_sharp, cv2.COLOR_BGR2HSV)
+            v_channel = hsv[..., 2]
+            brightness = v_channel.mean()
+            print(f"Brightness for ImageStats: {brightness:.2f} (min: {v_channel.min()}, max: {v_channel.max()})")
+        else:
+            brightness = 0
+            print(f"Brightness fallback (grayscale image): {brightness}")
+
+        return brightness
+        
+    @staticmethod
+    def get_contrast(image_gs):
+        std_dev = image_gs.std()
+        min_val = image_gs.min()
+        max_val = image_gs.max()
+        if std_dev < 20:  # Too flat - tweakable
+            contrast = std_dev
+            status = "Too flat"
+        elif std_dev > 60 and (min_val < 5 or max_val > 250):  # Too harsh, tied to extremes
+            contrast = std_dev
+            status = "Too harsh"
+        else:
+            contrast = std_dev
+            status = "Good"
+        print(f"Contrast: {contrast:.2f} ({status}, min: {min_val}, max: {max_val})")
+        return contrast
+
+    @staticmethod
+    def get_haze_factor(image_sharp):
+        if len(image_sharp.shape) == 3:
+            hsv = cv2.cvtColor(image_sharp, cv2.COLOR_BGR2HSV)
+            s_channel = hsv[..., 1]  # Saturation (0-255)
+            saturation = s_channel.mean()
+            brightness = hsv[..., 2].mean()
+            # Hazy: moderate brightness, low saturation
+            if saturation < 50 and 50 < brightness < 150:
+                self.haze_factor = 100 - saturation  # Higher = hazier
+                status = "Hazy"
+            else:
+                haze_factor = saturation
+                status = "Clear"
+            print(f"Haze: {haze_factor:.2f} ({status}, sat: {saturation:.2f}, bright: {brightness:.2f})")
+        else:
+            haze_factor = 0
+            print(f"Haze fallback: {haze_factor}")
+        return haze_factor
+
+
+    @staticmethod
+    def get_variance(image_gs):
+
+        # compute square of image
+        img_sq = cv2.multiply(image_gs, 2)
+
+        # compute local mean in 5x5 rectangular region of each image
+        # note: python will give warning about slower performance when processing 16-bit images
+        region = footprint_rectangle((5, 5))        
+        mean_img = filters.rank.mean(image_gs, footprint=region)
+        mean_img_sq = filters.rank.mean(img_sq, footprint=region)
+
+        # compute square of local mean of img
+        sq_mean_img = cv2.multiply(mean_img, mean_img)
+
+        # compute variance using float versions of images
+        var = cv2.add(mean_img_sq.astype(np.float32), - sq_mean_img.astype(np.float32))
+        width = int(var.shape[1])
+        height = int(var.shape[0])
+        v2 = int(np.sum(var))
+        v2 = int(v2/(height*width))
+        return v2
+
+
+    @staticmethod
+    def get_shv(image_gs):
+
+        print(f'shape: {image_gs.shape}')
+        width, height = image_gs.shape
+        pix = image_gs
+
+        vs = []
+        
+        print(f'height: {height}')
+        print(f'width: {width}')
+        for y in range(height):
+            row = [pix[x,y] for x in range(width)]
+            # int(mean) = sum(row)/width
+            # variance = sum([(x-mean)**2 for x in row])/width
+
+            mean = np.sum(np.array(row, dtype=np.float64)) / width
+            variance = np.sum(np.array([(x - mean) ** 2 for x in row], dtype=np.float64)) / width
+            vs.append(variance)
+        return np.sum(np.array(vs, dtype=np.float64)) / height
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# import time
+# from PIL import Image, ImageStat
+# import cv2 as cv2
+# import numpy as np
+# import math
+# import sys
+# import os
+# # import matplotlib.pyplot as plt
+# # from skimage.morphology import rectangle
+# # import skimage.filters as filters
+# # from skimage import img_as_ubyte
+
+# # from skimage import io,img_as_float,transform
+# # from skimage.restoration import denoise_nl_means,estimate_sigma
+# # from skimage.util import img_as_ubyte
+# # from scipy import ndimage
+# # from scipy.ndimage.filters import convolve
+# from numpy.linalg import norm
+
+
+
+
+# def get_hough_lines(image_gs):
+
+#     line_length = 800
+#     edges = cv2.Canny(image_gs, 125, 350, apertureSize=3)
+#     success = False
+#     while not success:
+#         lines = cv2.HoughLines(edges, 1, np.pi / 180, line_length)
+#         try:
+#             if len(lines) > 0:
+#                 #print(self.hough_info)
+#                 success = True
+#                 return [len(lines),line_length]
+
+#         except:
+#             line_length = line_length -100
+#             if line_length < 20:
+#                 success = True
+#                 return [0,20]
+
+
+# def get_hough_circles(image_gs):
+#     gray = cv2.GaussianBlur(image_gs, (5, 5), 0)  # Add blur
+#     circles = cv2.HoughCircles(
+#         gray, cv2.HOUGH_GRADIENT, dp=1.2, minDist=50,
+#         param1=100, param2=20, minRadius=10, maxRadius=200
+#     )
+#     print(f"Circles detected: {self.hough_circles}")
+#     return len(circles[0]) if circles is not None else 0
+
+
+
+
+
+# def get_contours(image_gs):
+
+#     edged = cv2.Canny(image_gs, 50, 150, 3)
+#     contours, hierarchy = cv2.findContours(edged, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+#     try:
+#        return len(contours),0
+#     except:
+#         return (0,0)
+
+
+
+# def get_faces(image_gs):
+#     # Correct path with (x86) and Windows slashes
+#     cascade_path = "C:/Program Files (x86)/Sublime Text/haarcascade_frontalface_default.xml"
+#                   # "C:\\Program Files (x86)\\Sublime Text\\haarcascade_frontalface_default.xml"        
+#     # Load the classifier
+#     face_cascade = cv2.CascadeClassifier(cascade_path)
+    
+#     # Check if loaded
+#     if face_cascade.empty():
+#         print(f"Error: Couldn’t load cascade from {cascade_path}")
+#         return 0
+
+#     # Detect faces
+#     faces = face_cascade.detectMultiScale(image_gs, scaleFactor=1.1, minNeighbors=10, minSize=(50,50))
+#     return len(faces)     
+
+
+
+# def get_eyes(image_gs):
+#     # Fix path to your dir
+#     cascade_path = r"C:/Program Files (x86)/Sublime Text/haarcascade_eye.xml"
+    
+#     # Load it
+#     eye_cascade = cv2.CascadeClassifier(cascade_path)
+    
+#     # Safety check
+#     if eye_cascade.empty():
+#         print(f"Error: Can’t load {cascade_path}—check path or file!")
+#         return 0
+
+    
+#     # Detect eyes
+#     eyes = eye_cascade.detectMultiScale(image_gs, scaleFactor=1.1, minNeighbors=10, minSize=(50,50))
+#     return len(eyes)
+
+
+# def get_bodies(image_gs):
+
+#     # Path to the Haar cascade XML file
+#     cascade_path = "C:/Program Files (x86)/Sublime Text/haarcascade_fullbody.xml"
+#                  #  "C:/Program Files (x86)/Sublime Text/haarcascadefullbody.xml""
+#     # Load the Haar cascade classifier
+#     body_cascade = cv2.CascadeClassifier(cascade_path)
+
+#     # Detect bodies in the image
+#     bodies = body_cascade.detectMultiScale(image_gs, scaleFactor=1.1, minNeighbors=10, minSize=(50,50))
+#     return len(bodies)   
 
 

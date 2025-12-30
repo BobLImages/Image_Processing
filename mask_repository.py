@@ -1,14 +1,4 @@
-
-# # --- Usage Example ---
-
-# # # Let's create a synthetic image for demonstration
-# # color_image = np.zeros((image_size, image_size, 3), np.uint8)
-# # cv2.rectangle(color_image, (50, 50), (200, 200), (0, 0, 255), -1)  # Red (BGR)
-# # cv2.rectangle(color_image, (300, 300), (450, 450), (0, 0, 100), -1) # Dark Red (BGR)
-# # cv2.rectangle(color_image, (300, 50), (450, 200), (255, 0, 0), -1)   # Blue (BGR)
-
-
-# mask_repository.py (The correct, clean version)
+# mask_repository.py 
 
 import cv2
 import numpy as np
@@ -42,3 +32,17 @@ class MaskRepository:
     def clear(self):
         """Clears all stored masks (useful when loading a new image)."""
         self.masks = {}
+
+
+
+
+# # --- Usage Example ---
+
+# # # Let's create a synthetic image for demonstration
+# # color_image = np.zeros((image_size, image_size, 3), np.uint8)
+# # cv2.rectangle(color_image, (50, 50), (200, 200), (0, 0, 255), -1)  # Red (BGR)
+# # cv2.rectangle(color_image, (300, 300), (450, 450), (0, 0, 100), -1) # Dark Red (BGR)
+# # cv2.rectangle(color_image, (300, 50), (450, 200), (255, 0, 0), -1)   # Blue (BGR)
+
+
+        
