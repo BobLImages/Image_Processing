@@ -29,6 +29,11 @@ class ImageRef:
 class ImageCatalog:
     def __init__(self, images_df: DataFrame):
         self.df = images_df
+
+
+
+
+
         self.img_org_cv: Optional[np.ndarray] = None # Original BGR image
         self.img_sharp_cv: Optional[np.ndarray] = None # Sharpened BGR image
         self.img_gs: Optional[np.ndarray] = None # Grayscale image
@@ -207,8 +212,8 @@ class ImageCatalog:
         print(f"Current index: {self.current_index}")
         print(f"Current file: {self.df.iloc[self.current_index]['File_Name'] if 0 <= self.current_index < len(self.df) else 'None'}")
 
-        print(f"\n--- First {rows} rows ---")
-        print(self.df.head(rows).to_string(index=False))
+        # print(f"\n--- First {rows} rows ---")
+        # print(self.df.head(rows).to_string(index=False))
 
         # Optional: show stats summary
         if 'Brightness' in self.df.columns:

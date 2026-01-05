@@ -1,9 +1,12 @@
-# rpt_dbg_tst.py
+# rpt_dbg_tst.py report_df_contents
 
 import numpy as np
 import cv2
 import pandas as pd
 from pathlib import Path
+import random
+
+
 
 '''Here's  entire module. We need Class: RTD and make those methods 
 Like ImageFunctions.  Something else I noticed Don't report and 
@@ -14,30 +17,57 @@ report_db_contents look eerily similar ?
 
 class RTD:
 
-    def report_db_contents(db_path: Path, rows: int = 10):
-        
+            #Samplle for  report_obj_, df_contents
+            # title = f'\nIn' <function name>'
+            # RTD.report_obj_contents(title, objs or df)
+
+    def report_obj_contents(title,objs):
+        print(title)
+        print("=== RICH obj CHECK ===")
+        print("Number of objects:", len(objs))
+        # print("Columns:", df.columns.tolist())
+        j = random.randint(0, 4)
+        if len(objs) > j:
+            obj = objs[j]
+            print(title)
+            print(j, " row image_id:", obj.image_id)
+            print(j, " row file_path:", obj.image_path)
+            print(j, " row geometry.height:", obj.geometry.get("original_height"))
+            print(j, " row ro_image type:", type(obj.ro_image))
+            print(j, " row image_stats.brightness:", obj.image_stats.brightness)
+            while True:
+                k = random.randint(0, 4)
+                if k != j:
+                    break
+            j=k
+            obj = objs[j]
+            print(f'Second test row')
+            print(title)
+            print(j, " row image_id:", obj.image_id)
+            print(j, " row file_path:", obj.image_path)
+            print(j, " row geometry.height:", obj.geometry.get("original_height"))
+            print(j, " row ro_image type:", type(obj.ro_image))
+            print(j, " row image_stats.brightness:", obj.image_stats.brightness)
+    
 
 
-        """Print key columns from the saved DB."""
-        if not db_path.exists():
-            print(f"DB not found: {db_path}")
-            return
+    def report_df_contents(title,df):
+        print(title)
+        print("=== RICH DF CHECK ===")
+        print("Number of rows:", len(df))
+        print("Columns:", df.columns.tolist())
+        j = random.randint(0, 4)
+        if len(df) > j:
+            row = df.iloc[j]
+            print("Row", j,"Image_ID:", row.get('Image_ID'))
+            print("Row", j,"File_Name:", row.get('File_Name'))
+            print("Row", j,"Geometry:", row.get('Geometry'))
+            print("Row", j,"Original_Image type:", type(row.get('Original_Image')))
+            print("Row", j,"Image_Stats:", row.get('Image_Stats'))
 
-        try:
-            with sqlite3.connect(db_path) as conn:
-                query = """
-                    SELECT Image_ID, File_Name, Brightness, Contrast, Laplacian
-                    FROM images
-                    LIMIT 10
-                """
-                df = pd.read_sql(query, conn, params=(rows,))
-                print(f"\n=== DB CONTENTS ({db_path.name}) ===")
-                print(df.to_string(index=False))
-                print(f"\nNumeric summary:")
-                print(df[['Brightness', 'Contrast', 'Laplacian']].describe().round(2))
-                print("=== END DB REPORT ===\n")
-        except Exception as e:
-            print(f"DB report failed: {e}")
+
+
+
 
 
 
@@ -55,7 +85,7 @@ class RTD:
         print(f"Current file: {images_pd.iloc[current_index]['File_Name'] if 0 <= current_index < len(images_pd) else 'None'}")
 
         print(f"\n--- First {rows} rows ---")
-        print(images_pd.head(rows).to_string(index=False))
+        # print(images_pd.head(rows).to_string(index=False))
 
         # Optional: show stats summary
         if 'Brightness' in images_pd.columns:

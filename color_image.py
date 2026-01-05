@@ -1,75 +1,58 @@
 # color_image.py
 
-from image_functions import ImageFunctions as IF
 import cv2
 import numpy as np
+from image_functions import ImageFunctions as IF
+from image_statistics import ImageStatistics
+from pathlib import Path
+from rpt_dbg_tst import RTD
+
 
 
 class ColorImage:
 	def __init__(self, r_src, image_id=None, fname=None, geometry=None):
 		self.image_id = image_id
 		self.image_path = fname
-		self.ro_image = r_src
 
 		# Handle geometry cleanly
 		self.geometry = geometry 
-
+		self.classification = "U"
+		
 		# Preprocessing
-		img_dnz = cv2.fastNlMeansDenoisingColored(self.ro_image.astype(np.uint8), None, 2, 2, 7, 21)
-		self.RODS_image = IF.sharpen(img_dnz)
+		self.ro_image = r_src
+		self.rod_image = cv2.fastNlMeansDenoisingColored(self.ro_image.astype(np.uint8), None, 2, 2, 7, 21)
+		self.RODS_image = IF.sharpen(self.rod_image)
 		self.image_gs = cv2.cvtColor(self.RODS_image.astype(np.uint8), cv2.COLOR_BGR2GRAY)
+		self.image_stats = ImageStatistics(
+		    brightness = IF.get_brightness(self.RODS_image),
+		    contrast = IF.get_contrast(self.image_gs),
+		    laplacian = IF.get_laplacian(self.image_gs),
+		    harris_corners = IF.get_harris(self.image_gs),
+		    haze_factor = IF.get_haze_factor(self.RODS_image),
+		    variance = IF.get_variance(self.image_gs),
+		    shv = IF.get_shv(self.image_gs)
+			)
 
 
-		        # === Add core stats right here ===
-		self.brightness = IF.get_brightness(self.RODS_image)
-		self.contrast = IF.get_contrast(self.image_gs)
-		self.laplacian = IF.get_laplacian(self.image_gs)
+	@staticmethod
+	def process_image_objs(paths:list[Path]):
+		color_images = []
+		for idx, path in enumerate(paths, 1):
+			ro_image,geometry_dict = IF.geometry(path)
+	        
+			image = ColorImage(
+			ro_image,
+			idx,
+			path,
+			geometry_dict
+			)
 
+			color_images.append(image)
+			print(f"Processing Index: {image.image_id}  File: {image.image_path.name}")
 
-
-
-
-
-		# cv2.imshow("Debug Image", self.RODS_image)
-		# cv2.waitKey(0)  # Wait for any key
-		# cv2.destroyAllWindows()
-
-
-		# Stats and camera
-		# self.stats = ImageStatistics(self.image_sharp, self.image_gs)
-		# self.camera = CameraSettings(self.image_path)
-		# self.get_classification()
-		print(f"Processing Index: {self.image_id}  File: {self.image_path.name}")
-
-
-# class  ImageStatistics:
-# 	def __init__(self, image_sharp,image_gs):
-
-# 		self.brightness = get_brightness(image_sharp)
-
-# 		self.contrast = get_contrast(image_gs)
-
-# 		self.haze_factor = get_haze_factor(image_gs)
-
-# 		self.hough_lines = get_hough_lines(image_gs)
-
-# 		self.hough_circles = get_hough_circles(image_gs)    
-
-# 		self.harris_corners = get_harris(image_gs)
-
-# 		self.contour_info  = get_contours(image_gs)
-
-# 		self.laplacian = get_laplacian(image_gs)
-
-# 		self.variance = get_variance(image_gs)
-
-# 		self.shv = get_shv(image_gs)
-
-# 		self.faces = get_faces(image_gs)
-
-# 		self.eyes = get_eyes(image_gs)
-
-# 		self.bodies = get_bodies(image_gs)
+		title = f'Inside process color_images(paths) right b4 return'   
+		RTD.report_obj_contents(title,color_images)
+		return color_images
 
 
 class CameraSettings:

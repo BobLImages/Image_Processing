@@ -15,14 +15,15 @@ from PIL import Image, ImageTk, ImageDraw
 # 3. Local app imports
 from ipa_gui import ImageAppUI
 from image_catalog import ImageCatalog, ImageRef
-from data_handler import DataHandler
-from harvester import Harvester, build_db_2_df
+from harvester import Harvester
 from mask_factory import MaskFactory
 from mask_defs import MASK_DEFS
-from file_record import EventPathGroup, FrameworkPathGroup
+from file_record import EventPathGroup, FrameworkPathGroup, get_disk_files
 from aux_wind import AuxWind
 from notes_repository import NotesRepository
 from rpt_dbg_tst import RTD
+from builder import Builder
+from color_image import ColorImage
 DB_ROOT = Path(r"D:\Image Data Files sql")  # use raw string or escape backslashes
 
 class ImageAppController:
@@ -48,9 +49,9 @@ class ImageAppController:
 
     def _initialize_catalog_from_df(self, df):
         self.catalog = ImageCatalog(df)
+
         # Reset self.current_index for a df being loaded
         self.current_index = 0
-        
         self.catalog.acquire_image(0)
         self.ui.show_image(self.catalog.pil_img)
         self._complete_ui_setup()
@@ -99,45 +100,48 @@ class ImageAppController:
         self.notes_repository.add(note_record)
         self.ui.set_status("Note saved")
 
-
     #***************************Button_press/Mouse_click and Navigation METHODS ******************************
     
     def select_directory(self): # 35 lines
         folder = filedialog.askdirectory()
         if not folder:
             return
-
+        
         event_path = Path(folder)
 
-        # 1. Confirm a valid folder was chosen, if valid == True create event_pths
-        
-        if not Harvester.is_valid_event_dir(event_path):
+
+# -----------------------------------------------------------------------
+        # 1. Confirms valid folder, if valid == True create event_paths
+        valid_files = get_disk_files(event_path)
+        if not valid_files:
             messagebox.showwarning("No Bueno", "Not enough images")
             return
         else:
-            valid_paths = Harvester.find_candidate_images(event_path)
-            if not valid_paths:
-                print(f'No valid paths were found')
-                return
-            else:
-                self.event_paths = EventPathGroup(
-                    event_path=event_path,
-                    db_root=self.framework_paths.db_root
-                )
- 
-
+            self.event_paths = EventPathGroup(
+                event_path=event_path,
+                db_root=self.framework_paths.db_root
+            )
+ # -------------------------------------------------------------------------
         # 2. If DB exists → create df else process, create db, create df
         if self.event_paths.catalog_db.exists():
-            df = build_db_2_df(self.event_paths.catalog_db)
+            df = Builder.build_db_2_df(self.event_paths.catalog_db)
         else:
-            # 4. No DB → ask for harvest
+            # 3. No DB → ask for harvest
             if not messagebox.askyesno("JUICE TIME?", "Create database and harvest?"):
                 return
             # 5. Harvest → creates DB + fills it
-            df = Harvester(self.event_paths).run()
+            color_images = ColorImage.process_image_objs(valid_files)
+            df = Builder.build_objs_2_df(color_images)
         
         self._initialize_catalog_from_df(df)
+            
+        # NEW: Save it to disk (lazy or immediate — your call)
+        Builder.build_df_2_db(self.event_paths.catalog_db, self.catalog.df)
+        self.ui.set_status(f"Catalog saved to {self.event_paths.catalog_db.name}")
     
+
+
+
 
     def delete_current_db(self):
         """Delete the current catalog DB file for a fresh start."""

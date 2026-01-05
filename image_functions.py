@@ -3,13 +3,38 @@
 import cv2
 import numpy as np
 from PIL import Image
+from pathlib import Path
+#from skimage.morphology import rectangular
+# from skimage.morphology import rectangle
+# from skimage.filters.rank import mean as rank_mean
+
 
 class ImageFunctions:
-    """
-    Toolbox for image operations.
-    Use static methods for resizing, sharpening, grayscaling, denoising, etc.
-    """
+
+    @staticmethod
+    def geometry(path: Path):
+        img = cv2.imread(str(path))
+        if img is None:
+            print(f"Failed to load: {path}")
+            return None, None
+
+        h, w = img.shape[:2]
+        scale = 896 / w if w < h else 2016 / w if w > h else 1.0
+        ro_w = int(w * scale)
+        ro_h = int(h * scale)
+        ro_image = cv2.resize(img, (ro_w, ro_h), interpolation=cv2.INTER_AREA)
+
+        geometry_dict = {
+            "original_width": w,
+            "original_height": h,
+            "ro_width": ro_w,
+            "ro_height": ro_h,
+            "scale_factor": scale,
+            "orientation": "Portrait" if h > w else "Landscape",
+            }
+        return ro_image, geometry_dict
     
+
     @staticmethod
     def resize_keep_aspect(image, max_width=600, max_height=800):
         """
@@ -110,10 +135,10 @@ class ImageFunctions:
             hsv = cv2.cvtColor(image_sharp, cv2.COLOR_BGR2HSV)
             v_channel = hsv[..., 2]
             brightness = v_channel.mean()
-            print(f"Brightness for ImageStats: {brightness:.2f} (min: {v_channel.min()}, max: {v_channel.max()})")
+            # print(f"Brightness for ImageStats: {brightness:.2f} (min: {v_channel.min()}, max: {v_channel.max()})")
         else:
             brightness = 0
-            print(f"Brightness fallback (grayscale image): {brightness}")
+            # print(f"Brightness fallback (grayscale image): {brightness}")
 
         return brightness
         
@@ -131,7 +156,7 @@ class ImageFunctions:
         else:
             contrast = std_dev
             status = "Good"
-        print(f"Contrast: {contrast:.2f} ({status}, min: {min_val}, max: {max_val})")
+        # print(f"Contrast: {contrast:.2f} ({status}, min: {min_val}, max: {max_val})")
         return contrast
 
     @staticmethod
@@ -143,53 +168,45 @@ class ImageFunctions:
             brightness = hsv[..., 2].mean()
             # Hazy: moderate brightness, low saturation
             if saturation < 50 and 50 < brightness < 150:
-                self.haze_factor = 100 - saturation  # Higher = hazier
+                haze_factor = 100 - saturation  # Higher = hazier
                 status = "Hazy"
             else:
                 haze_factor = saturation
                 status = "Clear"
-            print(f"Haze: {haze_factor:.2f} ({status}, sat: {saturation:.2f}, bright: {brightness:.2f})")
+            # print(f"Haze: {haze_factor:.2f} ({status}, sat: {saturation:.2f}, bright: {brightness:.2f})")
         else:
             haze_factor = 0
-            print(f"Haze fallback: {haze_factor}")
+            # print(f"Haze fallback: {haze_factor}")
         return haze_factor
 
 
     @staticmethod
     def get_variance(image_gs):
 
-        # compute square of image
-        img_sq = cv2.multiply(image_gs, 2)
+        # img = image_gs.astype(np.uint8)
+        # img_sq = np.square(img).astype(np.uint16)
 
-        # compute local mean in 5x5 rectangular region of each image
-        # note: python will give warning about slower performance when processing 16-bit images
-        region = footprint_rectangle((5, 5))        
-        mean_img = filters.rank.mean(image_gs, footprint=region)
-        mean_img_sq = filters.rank.mean(img_sq, footprint=region)
+        # footprint = rectangular(5, 5)
 
-        # compute square of local mean of img
-        sq_mean_img = cv2.multiply(mean_img, mean_img)
+        # mean_img = rank_mean(img, footprint)
+        # mean_img_sq = rank_mean(img_sq, footprint)
 
-        # compute variance using float versions of images
-        var = cv2.add(mean_img_sq.astype(np.float32), - sq_mean_img.astype(np.float32))
-        width = int(var.shape[1])
-        height = int(var.shape[0])
-        v2 = int(np.sum(var))
-        v2 = int(v2/(height*width))
-        return v2
-
+        # variance = mean_img_sq.astype(np.float64) - np.square(mean_img.astype(np.float64))
+        global_variance =  2.2 # np.mean(variance)
+        # print(f'Global Variance {global_variance}')
+        return float(global_variance)
 
     @staticmethod
     def get_shv(image_gs):
 
-        print(f'shape: {image_gs.shape}')
+        # print(f'shape: {image_gs.shape}')
         width, height = image_gs.shape
         pix = image_gs
 
         vs = []
         
-        print(f'height: {height}')
-        print(f'width: {width}')
+        # print(f'height: {height}')
+        # print(f'width: {width}')
         for y in range(height):
             row = [pix[x,y] for x in range(width)]
             # int(mean) = sum(row)/width

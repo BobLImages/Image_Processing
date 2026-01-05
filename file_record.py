@@ -1,14 +1,44 @@
 # # file_record.py
 
 
-'''
-                EXAMPLES USED IN FOLOWING CLASSES
-event_dir = K:\Year 2025\2025-12-06 Jefferson Forest vs Varina Football
-db_root   = D:\Image Data Files sql
-image     = K:\Year 2025\2025-12-06 Jefferson Forest vs Varina Football\5Q2A0690.JPG
-'''
+#                 EXAMPLES USED IN FOLOWING CLASSES
+# event_dir = K:\Year 2025\2025-12-06 Jefferson Forest vs Varina Football
+# db_root   = D:\Image Data Files sql
+# image     = K:\Year 2025\2025-12-06 Jefferson Forest vs Varina Football\5Q2A0690.JPG
+
+
+
 from dataclasses import dataclass
 from pathlib import Path
+from image_functions import ImageFunctions as IF
+from color_image import ColorImage 
+from rpt_dbg_tst import RTD
+
+
+
+
+@staticmethod
+def get_disk_files(event_path: Path) -> list:
+    valid = find_candidate_images(event_path)
+    if len(valid) > 4:
+        return valid
+    return None
+
+
+
+
+@staticmethod
+def find_candidate_images(event_path: Path) -> list[Path]:
+        # Sacred filter — only originals
+     
+
+     return [
+        p for p in event_path.glob("*.[jJ][pP][gG]")
+        if p.is_file()
+           and not p.name.lower().startswith('r_')
+           and '$' not in p.name and "exposure" not in p.name
+    ]
+
 
 @dataclass(frozen=True)
 class ImagePathGroup:
