@@ -55,57 +55,57 @@ class ColorImage:
 		return color_images
 
 
-class CameraSettings:
-	def __init__(self, full_path):
+# class CameraSettings:
+# 	def __init__(self, full_path):
 
-		self.exposure = 0
-		self.fstop = 0
-		self.iso = 0
-		self.focal_length = 0
-		self.bodyserialnumber = []
-		self.datetimeoriginal = []
-		self.get_exif_data(full_path)
+# 		self.exposure = 0
+# 		self.fstop = 0
+# 		self.iso = 0
+# 		self.focal_length = 0
+# 		self.bodyserialnumber = []
+# 		self.datetimeoriginal = []
+# 		self.get_exif_data(full_path)
 
 
 
-	def get_exif_data(self, full_path):
-		im = open(full_path,'rb')
-		tags = exifread.process_file(im)
-		for tag in tags.keys():
-		    if tag in "EXIF ExposureTime":
-		        result = str(tags[tag])
-		        if '/' in result:
-		            new_result, x = result.split('/')
-		            self.exposure = int(new_result)/int(x)
-		        else:
-		            self.exposure = int(result)    
+# 	def get_exif_data(self, full_path):
+# 		im = open(full_path,'rb')
+# 		tags = exifread.process_file(im)
+# 		for tag in tags.keys():
+# 		    if tag in "EXIF ExposureTime":
+# 		        result = str(tags[tag])
+# 		        if '/' in result:
+# 		            new_result, x = result.split('/')
+# 		            self.exposure = int(new_result)/int(x)
+# 		        else:
+# 		            self.exposure = int(result)    
 
-		    if tag in "EXIF FNumber":
-		        result = str(tags[tag])
-		        if '/' in result:
-		            new_result, x = result.split('/')
-		            self.fstop = int(new_result)/int(x)
-		        else:
-		            self.fstop = int(result)    
+# 		    if tag in "EXIF FNumber":
+# 		        result = str(tags[tag])
+# 		        if '/' in result:
+# 		            new_result, x = result.split('/')
+# 		            self.fstop = int(new_result)/int(x)
+# 		        else:
+# 		            self.fstop = int(result)    
 
-		    if tag in "EXIF ISOSpeedRatings":
-		        result = str(tags[tag])
-		        self.iso = int(result)
+# 		    if tag in "EXIF ISOSpeedRatings":
+# 		        result = str(tags[tag])
+# 		        self.iso = int(result)
 
-		    if tag in 'EXIF DateTimeOriginal':
-		        result = str(tags[tag])
-		        self.datetimeoriginal = result
-		        #print(self.datetimeoriginal)
+# 		    if tag in 'EXIF DateTimeOriginal':
+# 		        result = str(tags[tag])
+# 		        self.datetimeoriginal = result
+# 		        #print(self.datetimeoriginal)
 
-		    if tag in "EXIF BodySerialNumber":
-		        result = str(tags[tag])
-		        self.bodyserialnumber = result
-		        #print(self.bodyserialnumber)
+# 		    if tag in "EXIF BodySerialNumber":
+# 		        result = str(tags[tag])
+# 		        self.bodyserialnumber = result
+# 		        #print(self.bodyserialnumber)
 
-		    if tag in "EXIF FocalLength":
-		        result = str(tags[tag])
-		        self.focal_length = result
-		        #print(self.focal_length)
+# 		    if tag in "EXIF FocalLength":
+# 		        result = str(tags[tag])
+# 		        self.focal_length = result
+# 		        #print(self.focal_length)
 
 
 

@@ -24,15 +24,10 @@ def get_disk_files(event_path: Path) -> list:
         return valid
     return None
 
-
-
-
 @staticmethod
 def find_candidate_images(event_path: Path) -> list[Path]:
         # Sacred filter — only originals
-     
-
-     return [
+    return [
         p for p in event_path.glob("*.[jJ][pP][gG]")
         if p.is_file()
            and not p.name.lower().startswith('r_')
@@ -128,48 +123,6 @@ class EventPathGroup:
     def aesthetics_dir(self) -> Path:
         return self.event_path / "Aesthetics"
         # → K:\Year 2025\2025-12-06 Jefferson Forest vs Varina Football\Aesthetics
-
-
-
-# @dataclass
-# class FrameworkPaths:
-#     db_root: Path
-
-#     # Derived paths as properties (very common in dataclasses)
-#     @property
-#     def notes_root(self) -> Path:
-#         return self.db_root / "notes"
-
-#     @property
-#     def notes_db(self) -> Path:
-#         return self.note_root / "notes.db"
-
-#     # @property
-#     # def thumbnails(self) -> Path:
-#     #     return self.db_root / "thumbnails"
-
-#     # Instance method — small behavior directly tied to the data
-#     def ensure_exists(self) -> None:
-#         """Create required directories if they don't exist."""
-#         self.db_root.mkdir(parents=True, exist_ok=True)
-#         self.note_root.mkdir(parents=True, exist_ok=True)
-#         # self.thumbnails.mkdir(parents=True, exist_ok=True)
-
-#     # Or make it automatic after init
-#     def __post_init__(self) -> None:
-#         self.ensure_exists()
-
-
-#     # Static method — useful utility not tied to an instance
-#     @staticmethod
-#     def default_location() -> Path:
-#         """Return the default framework location (e.g., in user's home)."""
-#         return Path.home() / ".my_image_app" / "framework"
-
-#     # Class method — alternative constructor
-#     @classmethod
-#     def from_default(cls) -> "FrameworkPaths":
-#         return cls(cls.default_location())
 
 
 

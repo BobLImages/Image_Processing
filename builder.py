@@ -14,8 +14,6 @@ from image_statistics import ImageStatistics
 
 class Builder:
 
-
-
 	@staticmethod
 	def _decode_image(blob):
 		if blob is None:
@@ -25,8 +23,6 @@ class Builder:
 		if img is None:
 			print("Warning: Failed to decode image from BLOB")
 		return img
-
-
 
 
 	@staticmethod
@@ -209,8 +205,6 @@ def encode_df(df: pd.DataFrame) -> pd.DataFrame:
         df_out['shv']              = s.apply(lambda obj: obj.shv              if obj else None)
 
         # === FUTURE STATS GO HERE ===
-        # df_out['snr']              = s.apply(lambda obj: obj.snr              if obj else None)
-        # etc.
 
         df_out = df_out.drop(columns=['Image_Stats'])
 
@@ -238,97 +232,5 @@ def encode_df(df: pd.DataFrame) -> pd.DataFrame:
         df_out['notes'] = None
 
     df_out = df_out.reindex(columns=final_order)
-
     return df_out
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-	
-	# @staticmethod	    
-	# def encode_df(df:pd.DataFrame):
-	# 	converted_df = df.copy()
-		
-
-
-
-	# 	# Images → BLOBs   These are done in place
-	# 	converted_df['Original_Image'] = converted_df['Original_Image'].apply(_encode_image)
-	# 	converted_df['Denoised_Image'] = converted_df['Denoised_Image'].apply(_encode_image)
-	# 	converted_df['Sharpened_Image'] = converted_df['Sharpened_Image'].apply(_encode_image)
-	# 	converted_df['Grayscale_Image'] = converted_df['Grayscale_Image'].apply(_encode_image)
-	# 	# Path → str
-	# 	converted_df['File_Name'] = converted_df['File_Name'].apply(lambda p: str(p) if p else None)
-	# 	converted_df['Original_Height'] = converted_df['
-	# 	converted_df['Original_Width'] = converted_df['
-
-    #     geometry_dict = {
-    #         "original_width": w,
-    #         "original_height": h,
-    #         "ro_width": ro_w,
-    #         "ro_height": ro_h,
-    #         "scale_factor": scale,
-    #         "orientation": "Portrait" if h > w else "Landscape",
-    #         }
-
-
-
-
-
-
-
-
-
-
-	# 	print("Data prepared for DB save")
-		# except Exception as e:
-		# 	print(f"Failed to prepare data: {e}")
-		# 	return False
-
-
-
-
-
-
-		# # === 2. DB operations — small, focused try block ===
-		# try:
-
-		# except Exception as e:
-		# 	print(f"DB save failed: {e}")
-		# 	return False
-		# finally:
-		# 		print("DB connection explicitly closed")
-		# print("Dataframe successfully decoded")
-		# print(f"Rows: {len(df)}, Columns: {list(df.columns)}")
-		# return df
-
-
-
 
