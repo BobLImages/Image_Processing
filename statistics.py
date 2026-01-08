@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from typing import Optional
 from pathlib import Path
+import exifread
 
 @dataclass
 class FileStats:
@@ -45,7 +46,12 @@ class  ImageStatistics:
 
 
 
-
+@dataclass
+class EXIFStatistics:
+    exposure: Optional[float] = None
+    f_stop: Optional[float] = None
+    iso: Optional[int] = None
+    focal_length: Optional[int] = None
 
 
 

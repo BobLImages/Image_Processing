@@ -7,9 +7,50 @@ from pathlib import Path
 #from skimage.morphology import rectangular
 # from skimage.morphology import rectangle
 # from skimage.filters.rank import mean as rank_mean
-
+import mediapipe as mp
 
 class ImageFunctions:
+    _face_detection = None  # class-level cache so we don't recreate it every call
+
+    @staticmethod
+    def detect_faces_with_mediapipe(img_cv, min_confidence=0.5):
+        """Detect faces in an OpenCV BGR image → return list of face dicts"""
+        import mediapipe as mp
+        import cv2
+
+        if img_cv is None:
+            return []
+
+        # Create detector fresh each call — simple and reliable
+        face_detection = mp.solutions.face_detection.FaceDetection(
+            model_selection=1,          # 1 = full range (better for group shots)
+            min_detection_confidence=min_confidence
+        )
+
+        # Convert BGR → RGB
+        rgb_image = cv2.cvtColor(img_cv, cv2.COLOR_BGR2RGB)
+        results = face_detection.process(rgb_image)
+
+        faces = []
+        if results.detections:
+            h, w = img_cv.shape[:2]
+            for detection in results.detections:
+                bbox = detection.location_data.relative_bounding_box
+                x1 = max(0, int(bbox.xmin * w))
+                y1 = max(0, int(bbox.ymin * h))
+                x2 = min(w, int((bbox.xmin + bbox.width) * w))
+                y2 = min(h, int((bbox.ymin + bbox.height) * h))
+                confidence = detection.score[0]
+
+                faces.append({
+                    'bbox': (x1, y1, x2, y2),
+                    'confidence': float(confidence),
+                    'width': x2 - x1,
+                    'height': y2 - y1,
+                    'center': ((x1 + x2) // 2, (y1 + y2) // 2)
+                })
+
+        return faces
 
     @staticmethod
     def geometry(path: Path):
@@ -218,6 +259,36 @@ class ImageFunctions:
         return np.sum(np.array(vs, dtype=np.float64)) / height
 
 
+
+class EXIFFunctions:
+
+    @staticmethod
+    def get_exposure(result):
+        if '/' in result:
+            new_result, x = result.split('/')
+            exposure = int(new_result)/int(x)
+        else:
+            exposure = int(result)    
+        return exposure
+
+    @staticmethod
+    def get_f_stop(result):
+        if '/' in result:
+            new_result, x = result.split('/')
+            fstop = int(new_result)/int(x)
+        else:
+            fstop = int(result)    
+        return fstop
+     
+    @staticmethod
+    def get_iso(result):
+        iso = int(result)
+        return
+
+    @staticmethod
+    def get_focal_length(result):
+        focal_length = int(result)
+        return focal_length
 
 
 

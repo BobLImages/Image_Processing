@@ -9,7 +9,7 @@ from mask_factory import MaskFactory
 from mask_defs import MASK_DEFS
 from datetime import datetime
 import time
-print("MASK_DEFS present:", isinstance(MASK_DEFS, dict), "count:", len(MASK_DEFS))
+# print("MASK_DEFS present:", isinstance(MASK_DEFS, dict), "count:", len(MASK_DEFS))
 
 
 
@@ -173,11 +173,6 @@ class ImageAppUI:
         #     **btn_style
         # )
         # self.notes_btn.pack(side="right", padx=20)        
-
-
-
-
-
         # self.notes_btn.pack(side="left", padx=10)        
                 
 
@@ -185,12 +180,6 @@ class ImageAppUI:
         self.status = tk.Label(self.root, text="Ready", fg="#00ff41", bg="#1a1a1a",
                                anchor="w", font=("Helvetica", 9))
         self.status.pack(fill="x", padx=20, pady=5)
-
-
-
-
-
-
 
 
     def update_mask_list(self, names):
@@ -212,7 +201,7 @@ class ImageAppUI:
         self.current_pil_image = pil_image.copy() # Store the full size original
 
         # Resize for canvas display (preserve aspect ratio)
-        print(f' Displaying image')
+        # print(f' Displaying image')
         canvas_w, canvas_h = self.CANVAS_WIDTH, self.CANVAS_HEIGHT 
         
         # --- FIX IS HERE ---
@@ -223,7 +212,7 @@ class ImageAppUI:
         tk_img = ImageTk.PhotoImage(pil_image)
         # --- END FIX ---
         
-        print(f'converting to tkinter')
+        # print(f'converting to tkinter')
         
         # Center on canvas
         self.canvas.create_image(

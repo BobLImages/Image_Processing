@@ -29,7 +29,7 @@ class RTD:
             print(j, " row ro_image type:", type(obj.ro_image))
             print(j, " row image_stats.brightness:", obj.image_stats.brightness)
             print(f"\n=== Object Report ===")
-            print(f"Total objects: {len(obj)}")
+            print(f"Total objects: {len(objs)}")
             print(f"\n=== End Report ===\n")
 
 # ****************Code to run anther random obj*******

@@ -132,11 +132,10 @@ class ImageAppController:
             # 5. Harvest → creates DB + fills it
             color_images = ColorImage.process_image_objs(valid_files)
             df = Builder.build_objs_2_df(color_images)
+            # NEW: Save it to disk (lazy or immediate — your call)
+            Builder.build_df_2_db(self.event_paths.catalog_db, self.catalog.df)
         
         self._initialize_catalog_from_df(df)
-            
-        # NEW: Save it to disk (lazy or immediate — your call)
-        Builder.build_df_2_db(self.event_paths.catalog_db, self.catalog.df)
         self.ui.set_status(f"Catalog saved to {self.event_paths.catalog_db.name}")
     
 
